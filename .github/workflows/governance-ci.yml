@@ -1,0 +1,44 @@
+name: Governance CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+
+  governance-audit:
+    name: Governance structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check governance file structure and required phrases
+        run: python3 scripts/governance_audit.py --strict
+
+  module-audit:
+    name: Module structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check file sizes and module naming
+        run: python3 scripts/module_structure_audit.py --strict
+
+  release-gate-audit:
+    name: Release gate
+    runs-on: ubuntu-latest
+    # Only enforce on main — PRs may not have a release note yet
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Audit release notes for required evidence
+        run: python3 scripts/release_gate_audit.py --strict

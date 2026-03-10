@@ -1,5 +1,9 @@
 # Current Iteration
 
+## Baseline
+- branch:
+- commit:
+
 ## Goal
 <single goal>
 
@@ -17,3 +21,6 @@
 
 ## Acceptance criteria
 - ...
+
+## Blocked by
+- (none)

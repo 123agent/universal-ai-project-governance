@@ -15,3 +15,11 @@
 
 ## Rollback note
 - ...
+
+## Confidence
+
+| Dimension | Level | Reason |
+|-----------|-------|--------|
+| Implementation correctness | HIGH / MEDIUM / LOW | |
+| Test coverage | HIGH / MEDIUM / LOW | |
+| Regression risk | LOW / MEDIUM / HIGH | |

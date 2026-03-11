@@ -18,6 +18,8 @@
 9. [CI 自动执行说明](#9-ci-自动执行说明)
 10. [Release 发布流程](#10-release-发布流程)
 11. [常见错误和应对](#11-常见错误和应对)
+12. [Confidence Assessment 说明](#12-confidence-assessment-说明)
+13. [跨迭代交接机制](#13-跨迭代交接机制)
 
 ---
 
@@ -120,8 +122,10 @@ my-project/
 │
 ├── TASKS/                    ← 迭代执行区（每次迭代更新）
 │   ├── CURRENT_ITERATION.md  # 当前迭代目标 ← agent 工作前必读
+│   ├── HANDOFF_NOTES.md      # agent 自维护的跨迭代交接便签 ← 每次迭代开始必读、结束必写
 │   ├── ROADMAP.md
-│   └── BLOCKERS.md
+│   ├── BLOCKERS.md
+│   └── RETROSPECTIVES/       # 迭代后记（人工填写，可选）
 │
 ├── QA/                       ← 质量验证区
 │   ├── RELEASE_DECISION.md   # QA agent 填写
@@ -132,6 +136,9 @@ my-project/
 │
 ├── templates/                ← 模板，复制使用
 │   ├── CURRENT_ITERATION_TEMPLATE.md
+│   ├── HANDOFF_NOTES_TEMPLATE.md
+│   ├── ITERATION_RETROSPECTIVE_TEMPLATE.md
+│   ├── BUILD_COMMANDS.md     # 构建/测试命令参考，agent 维护
 │   ├── RELEASE_NOTE_TEMPLATE.md
 │   ├── AGENT_SYSTEM_PROMPT_TEMPLATE.md
 │   ├── BLOCKERS_TEMPLATE.md
@@ -274,7 +281,7 @@ Read these governance files in order:
 
 ### 迭代结束（agent 完成后）
 
-Agent 必须输出 completion claim，包含：
+Agent 必须输出 completion claim，包含以下**五项**（缺任何一项不接受）：
 
 ```
 ## Completion claim
@@ -296,27 +303,53 @@ tests/auth/test_register.py::test_short_password PASSED
 ### Known limitations
 - 未测试数据库连接超时场景
 - 密码 hash 算法固定为 bcrypt，未来可能需要配置化
+
+### Confidence
+| Dimension                    | Level  | Reason                                      |
+|------------------------------|--------|---------------------------------------------|
+| Implementation correctness   | HIGH   | 所有验收标准均有对应实现，逻辑直接           |
+| Test coverage                | MEDIUM | happy path 覆盖，超时场景未测试              |
+| Regression risk              | LOW    | 改动仅限 src/auth/，未触碰共用模块           |
 ```
 
-**没有以上四项，不接受 completion claim。**
+**没有以上五项，不接受 completion claim。**
+
+> Confidence 判断标准见 `GOVERNANCE/AGENT_EXECUTION_RULES.md`。
+> 若三项均为 LOW 或 Regression risk 为 HIGH，必须人工审查后 QA agent 才能继续。
+
+### 迭代后记（可选但推荐）
+
+每次迭代完成后，将观察到的经验记录到 `TASKS/RETROSPECTIVES/`：
+
+```bash
+cp templates/ITERATION_RETROSPECTIVE_TEMPLATE.md \
+   TASKS/RETROSPECTIVES/RETRO_001_user_registration.md
+```
+
+填写内容包括：scope 是否合适、agent 是否有 scope 漂移、confidence 自评准不准。
+这些记录不强制，但会随项目积累，帮助人工不断改进 scope 划定和 agent 指令质量。
 
 ---
 
 ## 6. Agent 角色分工说明
 
-| 角色 | 职责 | 可以修改的目录 |
-|------|------|----------------|
-| **Product agent** | 定义目标、用户流程、验收标准 | `PRODUCT/` |
-| **Design agent** | 定义 IA、状态、视觉系统 | `DESIGN/` |
-| **Architect agent** | 定义模型、模块边界、接口契约 | `ARCH/` |
-| **Builder agent** | 实现 Scope 内的代码 | `src/`（Scope 指定的文件） |
-| **QA agent** | 验证、运行 release gates、可以拒绝发布 | `QA/`、`RELEASES/` |
+| 角色 | 职责 | 只读阶段 | 可写目录 |
+|------|------|----------|---------|
+| **Product agent** | 定义目标、用户流程、验收标准 | 审阅 ARCH/、DESIGN/ | `PRODUCT/` |
+| **Design agent** | 定义 IA、状态、视觉系统 | 审阅 PRODUCT/、ARCH/ | `DESIGN/` |
+| **Architect agent** | 定义模型、模块边界、接口契约 | 审阅 PRODUCT/、DESIGN/、src/ | `ARCH/` |
+| **Builder agent** | 实现 Scope 内的代码 | 读 GOVERNANCE/、ARCH/、TASKS/ | `src/`（Scope 指定文件） |
+| **QA agent** | 验证、运行 release gates、可以拒绝发布 | 审阅所有目录 | `QA/`、`RELEASES/` |
 
 **关键规则：**
 
 - Builder 不能修改 `ARCH/`（架构变更需要新迭代，角色切换为 Architect）
 - 任何 agent 不能修改 `GOVERNANCE/`
 - QA agent 可以拒绝发布，且拒绝决定不可被其他 agent 覆盖
+
+**只读模式触发词：** 当你给 agent 的指令包含"审阅"、"分析"、"理解"、"评估"、"review"、"analyze" 时，agent 进入只读模式，**在收到明确的"开始实现"指令前，不得写入任何文件**。
+
+违反只读模式的写操作视为治理违规，必须回滚后才能继续。
 
 ---
 
@@ -595,17 +628,18 @@ ERROR  src/utils/  (generic name 'utils' — add README.md to justify)
 ```
 === GOVERNANCE RULES (MUST READ BEFORE ANY ACTION) ===
 
-1. Read TASKS/CURRENT_ITERATION.md first. If it doesn't exist or is
-   not filled in, STOP and report to the human.
+1. Read TASKS/HANDOFF_NOTES.md (if it exists), then TASKS/CURRENT_ITERATION.md.
+   If CURRENT_ITERATION.md doesn't exist or is not filled in, STOP and report.
 
 2. Work ONLY on files listed in the Scope section.
    Do not touch any other file, even if you think it needs fixing.
 
 3. Do not say "done", "tested", or "ready" without:
-   - exact list of changed files
+   - exact list of changed files (with line count delta)
    - exact commands you ran
    - exact output of those commands
    - known limitations
+   - confidence assessment (implementation / test coverage / regression risk)
 
 4. If you encounter something outside Scope that needs fixing,
    STOP, report it, and wait for a new iteration to be defined.
@@ -613,5 +647,180 @@ ERROR  src/utils/  (generic name 'utils' — add README.md to justify)
 5. Do not modify GOVERNANCE/, ARCH/, or PRODUCT/ unless your role
    explicitly permits it.
 
+6. If you are asked to "review", "analyze", or "assess" — you are in
+   read-only mode. Do not write any file until you receive explicit
+   instruction to begin implementation.
+
+7. When your iteration ends (success, partial, or blocked), update
+   TASKS/HANDOFF_NOTES.md. Not updating it means the iteration is
+   not officially closed.
+
+8. If CI fails, you may attempt to fix it up to 3 times. After 3
+   failed attempts, revert to the last passing commit, write the
+   blocker in HANDOFF_NOTES.md, and stop.
+
+9. Only emit "WORK COMPLETE: no further iterations needed" when the
+   entire project goal is finished — not at the end of a single
+   iteration. Misuse is a governance violation.
+
+10. Circuit breaker — stop immediately and report to human if:
+    - 3 consecutive iterations with zero new commits and no declared blocker
+    - Same error repeated 5 times without changing the affected file
+
 === END GOVERNANCE RULES ===
+```
+
+---
+
+## 12. Confidence Assessment 说明
+
+### 为什么加 Confidence
+
+AI agent 经常过度自信（说 HIGH 其实有漏洞）或过度谦虚（说 LOW 其实没问题）。
+强制填写三维置信度，并在迭代后记中对照实际结果，可以：
+1. 让人工在 review 时知道把注意力放在哪里
+2. 随时间积累，发现 agent 在哪类任务上系统性高估或低估
+
+### 三个维度
+
+**Implementation correctness** — 实现是否正确覆盖了验收标准
+- HIGH：所有验收标准都有直接对应实现，逻辑清晰
+- MEDIUM：部分验收标准覆盖，或实现有非显而易见的假设
+- LOW：部分实现，规格模糊，或做了重大假设
+
+**Test coverage** — 测试是否充分覆盖了验收标准
+- HIGH：所有验收标准有直接测试用例，含边界情况
+- MEDIUM：happy path 有测试，部分边界情况缺失
+- LOW：测试极少，或测试与验收标准脱节
+
+**Regression risk** — 改动对其他功能造成回归的风险
+- LOW：改动仅限 Scope 文件，未触碰共用模块
+- MEDIUM：Scope 文件与其他模块有交互
+- HIGH：触碰了共用工具函数、全局配置、或基础层
+
+### 触发人工强制审查的条件
+
+以下任一情况出现，QA agent 在完成人工确认前不得推进发布：
+- 三个维度全部为 LOW
+- Regression risk = HIGH
+
+### 迭代后记中的准确率追踪
+
+在 `TASKS/RETROSPECTIVES/` 中，每次迭代后记录 agent 自评与实际结果的对比。
+经过 5–10 次迭代后，可以发现规律性的偏差（如：agent 在涉及共用模块的任务中总是低估 regression risk）。
+这个发现可以直接写入给 agent 的 system prompt，修正其判断习惯。
+
+---
+
+## 13. 跨迭代交接机制
+
+### 设计背景
+
+AI agent 的一个典型问题是**无状态**：每次启动都是全新上下文，不知道上次做到哪里、踩过哪些坑。
+这导致重复的错误、重复的探索、以及"我来从头理解一遍这个项目"的时间浪费。
+
+解法：让 agent 在每次迭代结束时用 30 秒写一张便签，下次迭代开始时用 30 秒读完，然后直接从上次停下来的地方继续。
+这是接力棒，不是日志。
+
+### HANDOFF_NOTES.md 使用规则
+
+**位置：** `TASKS/HANDOFF_NOTES.md`（固定路径，只有一个文件，每次迭代覆写）
+
+**何时写：** 每次迭代结束时，无论成功、部分完成，还是中途被阻塞。
+
+**何时读：** 每次迭代开始时，在读 CURRENT_ITERATION.md 之后、开始任何工作之前。
+
+**格式：** 复制 `templates/HANDOFF_NOTES_TEMPLATE.md`，填写五个字段。
+
+内容原则：
+- 只写下一个 agent 需要知道的事
+- 不写"我完成了什么"（那在 completion claim 里）
+- Suggested next step 只能有一条，最重要的那一条
+- 如果没有遗留问题，明确写 `No blockers. Ready for next iteration.`
+
+**未更新 HANDOFF_NOTES 视为迭代未正式结束。**
+
+### Completion Signal（完成暗语）
+
+当 agent 判断**整个项目目标**（不仅仅是当前迭代）已全部完成时，必须在 completion claim 中包含以下精确短语：
+
+```
+WORK COMPLETE: no further iterations needed
+```
+
+规则：
+- 区分大小写，必须一字不差
+- 只用于项目级完成，不用于单次迭代结束
+- 如果还有遗留事项，必须写在 Known limitations 和 HANDOFF_NOTES 里，不能发出此信号
+
+**卡死循环识别：** 如果自动化流程中连续 3 次出现此信号但没有新 commit，则视为循环卡死，必须停止并通知人工。
+
+### CI 失败自动修复限额
+
+当 CI 在 commit 后失败时：
+
+| 阶段 | 规则 |
+|------|------|
+| 第 1–3 次修复尝试 | 允许。每次必须记录：失败原因 → 改动内容 → 新 CI 结果 |
+| 第 3 次仍未通过 | **停止**。回退到最近通过的 commit，将失败情况写入 HANDOFF_NOTES 的"Blockers"字段 |
+| 禁止行为 | 无限重试、静默忽略测试失败、带失败 CI 继续推进 |
+
+原因：三次修复尝试不通过，通常意味着问题超出了当前迭代的 scope 或能力，需要人工介入重新定义问题。
+
+### BUILD_COMMANDS.md（构建命令参考）
+
+**位置：** 复制 `templates/BUILD_COMMANDS.md` 到项目根目录，改名为 `BUILD_COMMANDS.md`。
+
+**谁来填：** builder agent 在首次接触项目时填写，之后遇到命令变化随手更新。人工可以校验，但不需要主动维护。
+
+**作用：** 每一个接手的 agent 直接读这个文件，立刻知道"怎么跑测试、怎么构建"，不用重新探索。
+
+包含字段：依赖安装、运行测试、单文件测试、构建、开发服务器、lint、环境配置、已知陷阱。
+
+---
+
+### Stagnation Circuit Breaker（熔断机制）
+
+两种熔断条件，满足任一即触发：
+
+**条件 A — 无进展熔断：**
+连续 3 次迭代，没有任何新 commit，且 HANDOFF_NOTES 里没有声明 blocker。
+→ 视为循环卡死，立即停止，通知人工。
+
+**条件 B — 同错误自旋：**
+相同的错误信息连续出现 5 次，没有对受影响文件做任何修改。
+→ 视为自旋死锁，立即停止，通知人工。
+
+**什么算"有进展"：**
+- 至少一个文件被 commit 到 git，或
+- HANDOFF_NOTES 的 Blockers 字段新增了声明（被阻塞 ≠ 卡死）
+
+**什么不算"有进展"：**
+- 只改了注释或文档但没 commit
+- 改了 Scope 外的文件
+- 重复运行同一个失败命令
+
+---
+
+### 机制全景图
+
+```
+项目初始化
+  └─ 复制 BUILD_COMMANDS.md → 填写构建/测试命令
+
+每次迭代开始
+  └─ 读 BUILD_COMMANDS.md（知道怎么跑测试）
+  └─ 读 HANDOFF_NOTES（知道上次到哪里）
+  └─ 读 CURRENT_ITERATION（确认目标和 scope）
+
+迭代执行中
+  ├─ CI 失败？→ 最多修复 3 次 → 超限则停止写 Blockers
+  ├─ 3 次无 commit 且无 blocker？→ 熔断，停止
+  └─ 同一错误出现 5 次？→ 熔断，停止
+
+迭代结束
+  └─ 写 completion claim（含 Confidence 三维评估）
+  └─ 更新 HANDOFF_NOTES（接力棒交出去）
+  └─ 若项目全部完成 → 发出 WORK COMPLETE 信号
+  └─ 若连续多迭代 → 人工更新 CURRENT_ITERATION → 下一棒
 ```

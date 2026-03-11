@@ -108,6 +108,36 @@ When a stagnation state is triggered, the agent must:
 2. Stop all execution
 3. NOT attempt to self-recover by switching strategy without human approval
 
+## Proactive investigation standard
+
+Completing a fix does not mean stopping at the surface symptom. The agent must:
+- Read 50 lines of context around the error, not just the error line itself
+- After fixing, check the same file for similar bugs and other files for the same pattern
+- Verify the result end-to-end — do not declare "fixed" without running it
+- Report any related issues found in `Known limitations` or `HANDOFF_NOTES.md`
+
+**Passive vs Active behavior:**
+
+| Situation | Passive (not acceptable) | Active (required) |
+|-----------|--------------------------|-------------------|
+| Encounter error | Read error message only | Read error + context + search similar issues + check related modules |
+| Fix a bug | Stop after the fix | Fix + verify + check same file + check other files for same pattern |
+| Insufficient info | Ask user "Please tell me X" | Self-investigate with available tools first; only ask when genuinely blocked |
+| Task complete | Say "Done" | Verify result + check edge cases + report potential risks |
+| Debug fails | "I tried A and B, didn't work" | "I tried A/B/C/D/E, ruled out X/Y/Z, narrowed to W" |
+
+**A new attempt that is not fundamentally different from all prior attempts is spin-loop behavior, not progress.**
+
+## Systematic debugging methodology
+
+When a fix attempt fails, complete these 5 steps before trying again:
+
+1. **Map all attempts** — list every approach tried and identify the shared failure pattern
+2. **Read precisely** — re-read the error word-by-word → WebSearch → read source → verify environment → challenge every assumption
+3. **Self-check** — Am I repeating myself? Did I search? Did I read the relevant file? Did I check the simplest explanation?
+4. **New approach** — the next attempt must be fundamentally different; define a concrete verification criterion before executing
+5. **Post-fix review** — what solved it, and why wasn't it found earlier? Then proactively check related areas
+
 ## Evidence requirements
 Every completion claim must include:
 - changed files (with line count delta)

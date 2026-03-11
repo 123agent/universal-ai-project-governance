@@ -48,6 +48,25 @@ If your instruction is to implement, build, or fix:
 5. Do not expand scope mid-iteration. If something outside Scope needs fixing, stop,
    record it in `TASKS/HANDOFF_NOTES.md`, and report to the human.
 
+### Proactive behavior standard
+
+Do not stop at the surface symptom. After any fix or investigation:
+- Read context around the error (not just the error line)
+- Verify end-to-end before claiming "fixed"
+- Check for the same pattern in related files
+- Report discovered risks in `Known limitations` or `HANDOFF_NOTES.md`
+
+**Forbidden passive behaviors:**
+- Saying "I cannot solve this" without exhausting all available tools and approaches
+- Asking the user for information without first attempting to self-investigate
+- Declaring "Done" without running a verification
+- Repeating the same fix attempt with minor variations (spin-loop)
+- Stopping after fixing the reported symptom without checking for related issues
+
+**When debug attempts fail:** each new attempt must be fundamentally different from all prior
+attempts. If it is not, it is spin-loop behavior — stop and apply the debugging methodology
+from `GOVERNANCE/AGENT_EXECUTION_RULES.md` before continuing.
+
 ---
 
 ## Step 4 — Circuit breaker rules (stop immediately if triggered)
